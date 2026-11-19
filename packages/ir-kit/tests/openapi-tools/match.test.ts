@@ -43,6 +43,15 @@ describe("match", () => {
     expect(get(r, "/xy")).toBeNull();
   });
 
+  it("prefers a literal segment over one mixing a param with literal text", () => {
+    const r = routes({
+      "/v1/{name}.json": "byName",
+      "/v1/special.json": "special",
+    });
+    expect(get(r, "/v1/special.json")?.operationId).toBe("special");
+    expect(get(r, "/v1/other.json")?.params).toEqual({ name: "other" });
+  });
+
   it("prefers a segment with literal text over a bare param", () => {
     const r = routes({ "/v1/{name}": "get", "/v1/{name}:cancel": "cancel" });
     expect(get(r, "/v1/a:cancel")?.operationId).toBe("cancel");

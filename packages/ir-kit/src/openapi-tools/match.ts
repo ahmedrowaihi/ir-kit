@@ -23,11 +23,12 @@ interface CompiledRoute extends Route {
   score: number;
 }
 
-/** Higher = more specific; literals outweigh `{param}` segments. */
+/** Higher = more specific: literal segments, then `{param}.json`-style mixes, then bare `{param}`. */
 function scorePath(spec: string): number {
   let score = 0;
   for (const segment of spec.split("/").filter(Boolean)) {
-    score += /^\{[^}]+\}$/.test(segment) ? 1 : 100;
+    if (!segment.includes("{")) score += 100;
+    else score += /^\{[^}]+\}$/.test(segment) ? 1 : 50;
   }
   return score;
 }
