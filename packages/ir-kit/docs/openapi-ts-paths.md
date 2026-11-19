@@ -41,7 +41,7 @@ export const getPetByIdRoute = {
 ```
 
 - `spec` — the original `{param}` template, useful when re-issuing the request.
-- `pattern` — `:param` form, ready to feed `URLPattern`, `path-to-regexp`, your router of choice.
+- `pattern` — `:param` form for `URLPattern` or your router of choice. Literal syntax characters are escaped (`/v1/{name}:cancel` → `/v1/:name\:cancel`), and param names that aren't identifiers become one (`{pet-id}` → `:pet_id`).
 - `method` — lower-case verb.
 - `operationId` — the OpenAPI id when present.
 
@@ -55,7 +55,8 @@ Tree-shakable: only the routes you import end up in the bundle. Pair with the ma
 import { match } from "@ir-kit/kit/openapi-tools/match";
 import { getPetByIdRoute } from "./generated/paths";
 
-const params = match(getPetByIdRoute.pattern, "/pets/42"); // { id: "42" }
+const hit = match([getPetByIdRoute], new Request("https://api.test/pets/42"));
+hit?.params; // { id: "42" }, keyed by the spec's own param names
 ```
 
 Or feed them to a router framework that takes pattern strings.
