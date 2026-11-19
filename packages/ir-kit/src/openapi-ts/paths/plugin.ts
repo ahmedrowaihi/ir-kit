@@ -1,12 +1,8 @@
 import { $ } from "@hey-api/openapi-ts";
+import { specToPattern } from "../../openapi-tools/route.js";
 import { identifierName } from "../kit/index.js";
 
 import type { PathsPlugin } from "./types.js";
-
-/** `/users/{id}/posts/{postId}` → `/users/:id/posts/:postId` */
-function specToPattern(spec: string): string {
-  return spec.replace(/\{([^}]+)\}/g, ":$1");
-}
 
 export const handler: PathsPlugin["Handler"] = ({ plugin }) => {
   const { casing, suffix } = plugin.config.naming;

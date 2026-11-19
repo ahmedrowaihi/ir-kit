@@ -1,4 +1,4 @@
-import type { Route } from "./route.js";
+import { type Route, specToPattern } from "./route.js";
 
 /** `/users/{id}/posts/{postId}` → `{ id: string; postId: string }` (URL params are always strings). */
 export type ExtractParams<P extends string> =
@@ -18,14 +18,17 @@ export type MatchResult<TRoute extends Route = Route> = TRoute extends Route
 
 interface CompiledRoute extends Route {
   compiled: URLPattern;
+  /** Spec param name of each positional group `p0`, `p1`, … */
+  params: string[];
   score: number;
 }
 
-/** Higher = more specific; literals outweigh `{param}` segments. */
+/** Higher = more specific: literal segments, then `{param}.json`-style mixes, then bare `{param}`. */
 function scorePath(spec: string): number {
   let score = 0;
   for (const segment of spec.split("/").filter(Boolean)) {
-    score += segment.startsWith("{") ? 1 : 100;
+    if (!segment.includes("{")) score += 100;
+    else score += /^\{[^}]+\}$/.test(segment) ? 1 : 50;
   }
   return score;
 }
@@ -35,11 +38,16 @@ const cache = new WeakMap<readonly Route[], CompiledRoute[]>();
 function compile(routes: readonly Route[]): CompiledRoute[] {
   const hit = cache.get(routes);
   if (hit) return hit;
-  const compiled: CompiledRoute[] = routes.map((r) => ({
-    ...r,
-    compiled: new URLPattern({ pathname: r.pattern }),
-    score: scorePath(r.spec),
-  }));
+  const compiled: CompiledRoute[] = routes.map((r) => {
+    const params: string[] = [];
+    const pathname = specToPattern(r.spec, (p) => `p${params.push(p) - 1}`);
+    return {
+      ...r,
+      compiled: new URLPattern({ pathname }),
+      params,
+      score: scorePath(r.spec),
+    };
+  });
   compiled.sort((a, b) => b.score - a.score);
   cache.set(routes, compiled);
   return compiled;
@@ -58,7 +66,8 @@ export function match<R extends Route>(
     if (!m) continue;
     const params: Record<string, string> = {};
     for (const [k, v] of Object.entries(m.pathname.groups ?? {})) {
-      if (typeof v === "string") params[k] = v;
+      const name = route.params[Number(k.slice(1))];
+      if (name !== undefined && typeof v === "string") params[name] = v;
     }
     return {
       spec: route.spec,

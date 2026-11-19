@@ -1,6 +1,6 @@
 import type { IR } from "../ir/index.js";
 
-import type { Route } from "./route.js";
+import { type Route, specToPattern } from "./route.js";
 
 const HTTP_METHODS = [
   "get",
@@ -12,11 +12,6 @@ const HTTP_METHODS = [
   "patch",
   "trace",
 ] as const;
-
-/** `/users/{id}/posts/{postId}` → `/users/:id/posts/:postId` */
-function specToPattern(spec: string): string {
-  return spec.replace(/\{([^}]+)\}/g, ":$1");
-}
 
 /** Extract `Route[]` from a parsed IR — for runtime-loaded specs without codegen. */
 export function routesFromIR(ir: IR.Model): Route[] {

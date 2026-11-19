@@ -10,10 +10,49 @@ export interface Route<
 > {
   /** OpenAPI path template, e.g. `/pets/{petId}` */
   spec: TSpec;
-  /** URLPattern-ready pathname, e.g. `/pets/:petId` */
+  /** URLPattern pathname for other routers, e.g. `/pets/:petId`. `match()` reads `spec`, not this. */
   pattern: string;
   /** HTTP method, lowercase. */
   method: TMethod;
   /** OperationId from the spec, when defined. */
   operationId?: string;
+}
+
+/** URLPattern syntax characters that are literal text in an OpenAPI path. */
+const SYNTAX = /[\\:*?+(){}]/g;
+
+/** Group names must be unique identifiers: `pet-id` → `pet_id`, `0` → `_0`, a second `pet_id` → `pet_id_2`. */
+function identifiers(): (param: string) => string {
+  const used = new Set<string>();
+  return (param) => {
+    let id = param.replace(/[^\p{ID_Continue}$]/gu, "_");
+    if (!/^[\p{ID_Start}$_]/u.test(id)) id = `_${id}`;
+    let unique = id;
+    for (let n = 2; used.has(unique); n++) unique = `${id}_${n}`;
+    used.add(unique);
+    return unique;
+  };
+}
+
+/**
+ * `/pets/{pet-id}` → `/pets/:pet_id`, `/v1/{name}:cancel` → `/v1/:name\:cancel`.
+ * Literal text is escaped, so `:`, `+`, `*`, `?`, `(`, `)` match themselves.
+ */
+export function specToPattern(
+  spec: string,
+  groupName: (param: string) => string = identifiers(),
+): string {
+  const parts = spec.split(/\{([^}]+)\}/);
+  let out = "";
+  for (const [i, part] of parts.entries()) {
+    if (i % 2 === 1) {
+      out += `:${groupName(part)}`;
+      continue;
+    }
+    const literal = part.replace(SYNTAX, "\\$&");
+    // A literal right after a group would otherwise extend its name.
+    out +=
+      i > 0 && /^[\p{ID_Continue}$]/u.test(literal) ? `\\${literal}` : literal;
+  }
+  return out;
 }
