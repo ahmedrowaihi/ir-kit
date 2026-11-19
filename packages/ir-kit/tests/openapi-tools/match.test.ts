@@ -65,5 +65,16 @@ describe("specToPattern", () => {
     expect(specToPattern("/v1/{name}:cancel")).toBe("/v1/:name\\:cancel");
     expect(specToPattern("/{id}abc")).toBe("/:id\\abc");
     expect(specToPattern("/a+b/{0}")).toBe("/a\\+b/:_0");
+    expect(specToPattern("/{é}/{pet-id}/{pet_id}")).toBe(
+      "/:é/:pet_id/:pet_id_2",
+    );
+  });
+
+  it("emits patterns URLPattern compiles", () => {
+    for (const spec of ["/{é}/{ö}", "/{a-b}/{a_b}", "/{!}/{?}"]) {
+      expect(
+        () => new URLPattern({ pathname: specToPattern(spec) }),
+      ).not.toThrow();
+    }
   });
 });

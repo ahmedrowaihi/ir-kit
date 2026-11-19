@@ -21,10 +21,17 @@ export interface Route<
 /** URLPattern syntax characters that are literal text in an OpenAPI path. */
 const SYNTAX = /[\\:*?+(){}]/g;
 
-/** Group names must be identifiers: `pet-id` → `pet_id`, `0` → `_0`. */
-function identifier(name: string): string {
-  const id = name.replace(/[^\w$]/g, "_");
-  return /^\d/.test(id) ? `_${id}` : id;
+/** Group names must be unique identifiers: `pet-id` → `pet_id`, `0` → `_0`, a second `pet_id` → `pet_id_2`. */
+function identifiers(): (param: string) => string {
+  const used = new Set<string>();
+  return (param) => {
+    let id = param.replace(/[^\p{ID_Continue}$]/gu, "_");
+    if (!/^[\p{ID_Start}$_]/u.test(id)) id = `_${id}`;
+    let unique = id;
+    for (let n = 2; used.has(unique); n++) unique = `${id}_${n}`;
+    used.add(unique);
+    return unique;
+  };
 }
 
 /**
@@ -33,7 +40,7 @@ function identifier(name: string): string {
  */
 export function specToPattern(
   spec: string,
-  groupName: (param: string) => string = identifier,
+  groupName: (param: string) => string = identifiers(),
 ): string {
   const parts = spec.split(/\{([^}]+)\}/);
   let out = "";
@@ -44,7 +51,8 @@ export function specToPattern(
     }
     const literal = part.replace(SYNTAX, "\\$&");
     // A literal right after a group would otherwise extend its name.
-    out += i > 0 && /^[\w$]/.test(literal) ? `\\${literal}` : literal;
+    out +=
+      i > 0 && /^[\p{ID_Continue}$]/u.test(literal) ? `\\${literal}` : literal;
   }
   return out;
 }
